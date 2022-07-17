@@ -2,7 +2,9 @@
 This repo is my solutions for course "Numerical Optimization in Robotics" on Shenlanxueyuan("Deep Blue Academy"? not sure about the official English name)[[link]](https://www.shenlanxueyuan.com/)
 
 ## Dependecies
+- cmake(minimal version: 3.12.0)
 - Eigen3
+- pybind11
 
 ## Exercise 1
 Implementation inexact line search(Backtracking/Armigo line search) for [Rosenbrock function](https://en.wikipedia.org/wiki/Rosenbrock_function).
