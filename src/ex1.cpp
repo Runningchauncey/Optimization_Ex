@@ -3,6 +3,13 @@
 #include <string>
 
 #include <Eigen/Core>
+#include <pybind11/embed.h>
+#include <pybind11/stl.h>
+
+namespace py = pybind11;
+
+// define functions
+void plotSearch(const std::vector<Eigen::VectorXd> &search_line);
 
 /**
  * @brief evaluate function at given vector
@@ -129,18 +136,18 @@ bool inexactLineSearchStep(Eigen::VectorXd &x,
 
 /**
  * @brief wrapper for all gradient descent methods
- * 
+ *
  * @param x_init init position
  * @param config optimizer configutation
- * @return true 
- * @return false 
+ * @return true
+ * @return false
  */
 bool gradientDescent(const Eigen::VectorXd &x_init,
                      OptimizerConfig &config)
 {
     // get order of input vector
     const int order = x_init.rows();
-    
+
     std::vector<Eigen::VectorXd> x_list;
     double lr = config.lr_;
 
@@ -148,7 +155,7 @@ bool gradientDescent(const Eigen::VectorXd &x_init,
     x_list.push_back(x);
     double cost_old = RosenbrockEvaluate(x);
     Eigen::VectorXd gradient = RosenbrockFirstOrderDeriv(x);
-    
+
     // gradient descent loop
     int iter = 0;
     while (gradient.norm() > config.stop_condi_)
@@ -161,16 +168,74 @@ bool gradientDescent(const Eigen::VectorXd &x_init,
                 return false;
             }
         }
-        //TODO: add other methods with switch
+
+        x_list.push_back(x);
+        // TODO: add other methods with switch
     }
+    plotSearch(x_list);
     return true;
+}
+
+void plotSearch(const std::vector<Eigen::VectorXd> &search_line)
+{
+    std::vector<double> sx, sy, sz;
+    for (int i = 0; i < search_line.size(); ++i)
+    {
+        sx.push_back(search_line[i](0));
+        sy.push_back(search_line[i](1));
+        sz.push_back(RosenbrockEvaluate(search_line[i]));
+    }
+
+    std::vector<std::vector<double>> x, y, z;
+    for (double i = -2; i <= 2; i += 0.1)
+    {
+        std::vector<double> x_row, y_row, z_row;
+        for (double j = -1; j <= 3; j += 0.1)
+        {
+            x_row.push_back(i);
+            y_row.push_back(j);
+            Eigen::Vector2d input = {i, j};
+            z_row.push_back(RosenbrockEvaluate(input));
+        }
+        x.push_back(x_row);
+        y.push_back(y_row);
+        z.push_back(z_row);
+    }
+
+    py::scoped_interpreter guard{};
+    using namespace py::literals;
+
+    py::dict locals = py::dict{
+        "x"_a = x,
+        "y"_a = y,
+        "z"_a = z,
+        "sx"_a = sx,
+        "sy"_a = sy,
+        "sz"_a = sz};
+
+    py::exec(R"(
+       import matplotlib as mpl
+       import matplotlib.pyplot as plt
+
+       fig1, ax2 = plt.subplots(constrained_layout=True)
+       CS = ax2.contourf(x, y, z, 10, cmap=plt.cm.plasma, linestyles='solid')
+       cbar = fig1.colorbar(CS)
+       ax2.plot(sx, sy, color='w')
+       plt.show()
+
+    )",
+             py::globals(), locals);
+
+    // plt::plot_surface(x, y, z);
+    // plt::plot_surface(sx, sy, sz);
+    // plt::show();
 }
 
 int main(int argc, char **argv)
 {
     // TODO: change here for N dimensional input
-    Eigen::VectorXd x(3);
-    x << -1.0, -1.0, -1.0;
+    Eigen::VectorXd x(2);
+    x << -1.0, -1.0;
     OptimizerConfig config(0.1, 0.00001, "inexact_line_search", 0, 0.1);
     gradientDescent(x, config);
 
